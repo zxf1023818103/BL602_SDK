@@ -22,6 +22,7 @@
 #include <bl_irq.h>
 #include <bl_flash.h>
 #include <bl602_xip_sflash.h>
+#include <wifi_mgmr_ext.h>
 
 #include "at_main.h"
 #include "at_core.h"
@@ -244,11 +245,14 @@ static int at_setup_cmd_sleep(int argc, const char **argv)
 
     if (sleep_mode == BASE_SLEEP_MODE_DISABLE) {
         if (at_base_config->sleep_mode != BASE_SLEEP_MODE_DISABLE) {
+            if (at_base_config->sleep_mode == BASE_SLEEP_MODE_MODEM)
+                wifi_mgmr_sta_ps_exit();
             at_base_config->sleep_mode = BASE_SLEEP_MODE_DISABLE;
         }
     }
     else if (sleep_mode == BASE_SLEEP_MODE_MODEM) {
         if (at_base_config->sleep_mode != BASE_SLEEP_MODE_MODEM) {
+            wifi_mgmr_sta_ps_enter(WIFI_COEX_PM_STA_DOZE);
             at_base_config->sleep_mode = BASE_SLEEP_MODE_MODEM;
         }
     }
