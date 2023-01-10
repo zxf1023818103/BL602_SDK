@@ -221,6 +221,10 @@ a lot of data that needs to be copied, this should be set high. */
  * SO_RCVTIMEO processing.
  */
 #define LWIP_SO_RCVTIMEO                1
+/**
+ * LWIP_SO_LINGER==1: Enable SO_LINGER processing.
+ */
+#define LWIP_SO_LINGER                1
 
 
 /* ---------- ICMP options ---------- */
@@ -393,5 +397,9 @@ extern int bl_rand();
 
 #define LWIP_RANDOMIZE_INITIAL_LOCAL_PORTS 1
 #define LWIP_RAND() ((u32_t)bl_rand())
+
+#define LWIP_DHCP_MAX_NTP_SERVERS 3
+#define LWIP_SO_RCVBUF 1
+#define LWIP_FIONREAD_LINUXMODE 1
 
 #endif /* __LWIPOPTS_H__ */

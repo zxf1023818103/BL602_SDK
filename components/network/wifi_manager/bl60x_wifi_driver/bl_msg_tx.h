@@ -14,6 +14,7 @@ struct bl_send_scanu_para {
 
 int bl_send_reset(struct bl_hw *bl_hw);
 int bl_send_monitor_enable(struct bl_hw *bl_hw, struct mm_monitor_cfm *cfm);
+int bl_send_monitor_disable(struct bl_hw *bl_hw, struct mm_monitor_cfm *cfm);
 /*
  *  use_40MHZ:
  *      0: Don't use 40MHZ

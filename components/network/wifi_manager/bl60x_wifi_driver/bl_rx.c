@@ -507,6 +507,7 @@ static void _rx_handle_beacon(struct scanu_result_ind *ind, struct ieee80211_mgm
         } else if (parsed_wpa_ie_len == 0) {
             ind_new.auth = WIFI_EVENT_BEACON_IND_AUTH_WEP;
             ind_new.cipher = WIFI_EVENT_BEACON_IND_CIPHER_WEP;
+            ind_new.group_cipher = WIFI_EVENT_BEACON_IND_CIPHER_WEP;
         }
 
         if (ccmp) {

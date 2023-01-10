@@ -223,6 +223,7 @@ static void __uart_config_set(hosal_uart_dev_t *uart, const hosal_uart_config_t 
 
     uartCfg.baudRate = cfg->baud_rate;
     uartCfg.dataBits = (UART_DataBits_Type)cfg->data_width;
+    uartCfg.stopBits = (UART_StopBits_Type)(cfg->stop_bits + 1);
     uartCfg.parity = (UART_Parity_Type)cfg->parity;
 
     if (cfg->flow_control == HOSAL_FLOW_CONTROL_CTS) {

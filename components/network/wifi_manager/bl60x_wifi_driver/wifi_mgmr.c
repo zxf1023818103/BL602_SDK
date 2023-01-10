@@ -52,6 +52,11 @@ const static struct state
     stateIfaceDown,
     stateSniffer,
     stateError;
+static char g_wifi_ap_ssid[33];
+static char g_wifi_ap_psk[65];
+static int g_wifi_ap_channel = 0;
+static uint8_t g_wifi_ap_hidden_ssid = 0;
+static void *g_wifi_ap_recover_timer = NULL;
 
 static void printErrMsg( void *stateData, struct event *event )
 {
@@ -433,6 +438,20 @@ static void stateAction( void *oldStateData, struct event *event,
     );
 }
 
+
+static bool stateSnifferGuard_idle(void *ev, struct event *event )
+{
+    wifi_mgmr_msg_t *msg;
+
+    msg = event->data;
+    if (ev != (void*)msg->ev) {
+        return false;
+    }
+
+    bl_main_monitor_disable();
+    return true;
+}
+
 /*function for state sniffer*/
 static bool stateSnifferGuard_ChannelSet( void *ch, struct event *event )
 {
@@ -501,6 +520,7 @@ static bool stateGlobalGuard_AP(void *ev, struct event *event )
 {
     wifi_mgmr_msg_t *msg;
     wifi_mgmr_ap_msg_t *ap;
+    int dhcp_enable;
 
     if (wifiMgmr.inf_ap_enabled) {
         bl_os_printf(DEBUG_HEADER "%s: AP iface has started!\r\n", __func__);
@@ -519,9 +539,12 @@ static bool stateGlobalGuard_AP(void *ev, struct event *event )
     ap = (wifi_mgmr_ap_msg_t*)msg->data;
 
     netifapi_netif_set_link_up(&(wifiMgmr.wlan_ap.netif));
-void dhcpd_start(struct netif *netif);
-    if (ap->use_dhcp_server) {
-        netifapi_netif_common(&(wifiMgmr.wlan_ap.netif), dhcpd_start, NULL);
+    wifi_mgmr_ap_dhcp_get(&dhcp_enable);
+    if (dhcp_enable) {
+        void dhcpd_start(struct netif *netif);
+        if (ap->use_dhcp_server) {
+            netifapi_netif_common(&(wifiMgmr.wlan_ap.netif), dhcpd_start, NULL);
+        }
     }
 
     if (ap->max_sta_supported >= 0) {
@@ -532,6 +555,10 @@ void dhcpd_start(struct netif *netif);
     bl_os_printf(DEBUG_HEADER "start AP with ssid %s;\r\n", ap->ssid);
     bl_os_printf(DEBUG_HEADER "              pwd  %s;\r\n", ap->psk);
     bl_os_printf(DEBUG_HEADER "              channel  %ld;\r\n", ap->channel);
+    strcpy(g_wifi_ap_ssid, ap->ssid);
+    strcpy(g_wifi_ap_psk, ap->psk);
+    g_wifi_ap_channel = ap->channel;
+    g_wifi_ap_hidden_ssid = ap->hidden_ssid;
     bl_main_apm_start(ap->ssid, ap->psk, ap->channel, wifiMgmr.wlan_ap.vif_index, ap->hidden_ssid, wifiMgmr.ap_bcn_int);
     wifiMgmr.inf_ap_enabled = 1;
     if (ap->use_dhcp_server) {
@@ -540,6 +567,21 @@ void dhcpd_start(struct netif *netif);
     aos_post_event(EV_WIFI, CODE_WIFI_ON_AP_STARTED, 0);
 
     return false;
+}
+
+static void ap_recover(void *data)
+{
+    if (wifiMgmr.inf_ap_enabled) {
+        wifi_mgmr_ap_stop(NULL);
+        bl_os_printf("Stoping AP to recover...\r\n");
+    }
+    else {
+        bl_os_timer_delete(g_wifi_ap_recover_timer, BL_OS_NO_WAITING);
+        g_wifi_ap_recover_timer = NULL;
+        wifi_mgmr_ap_enable();
+        wifi_mgmr_ap_start(NULL, g_wifi_ap_ssid, g_wifi_ap_hidden_ssid, g_wifi_ap_psk, g_wifi_ap_channel);
+        bl_os_printf("Starting AP to recover...\r\n");
+    }
 }
 
 static bool stateGlobalGuard_stop(void *ev, struct event *event )
@@ -568,6 +610,9 @@ err_t dhcp_server_stop(struct netif *netif);
     wifiMgmr.inf_ap_enabled = 0;
     aos_post_event(EV_WIFI, CODE_WIFI_ON_AP_STOPPED, 0);
 
+    if (g_wifi_ap_recover_timer) {
+        bl_os_timer_start_once(g_wifi_ap_recover_timer, 2, 0);
+    }
     return false;
 }
 
@@ -753,7 +798,7 @@ const static struct state stateSniffer = {
    .entryState = NULL,
    .transitions = (struct transition[])
    {
-      {EVENT_TYPE_APP, (void*)WIFI_MGMR_EVENT_APP_IDLE, &stateGuard, &stateAction, &stateIdle},
+      {EVENT_TYPE_APP, (void*)WIFI_MGMR_EVENT_APP_IDLE, &stateSnifferGuard_idle, &stateAction, &stateIdle},
       /*Will NOT transfer state*/
       {EVENT_TYPE_FW,  (void*)WIFI_MGMR_EVENT_FW_CHANNEL_SET, &stateSnifferGuard_ChannelSet, &stateAction, &stateIdle},
    },
@@ -1054,6 +1099,18 @@ static void stateConnectedIPNoEnter(void *stateData, struct event *event )
 
     __sta_setup_ip(use_dhcp);
     aos_post_event(EV_WIFI, CODE_WIFI_ON_CONNECTED, 0);
+
+    if (wifiMgmr.inf_ap_enabled) {
+        int channel;
+        wifi_mgmr_sta_connect_ind_stat_info_t stat;
+        wifi_mgmr_sta_connect_ind_stat_get(&stat);
+
+        channel = (int)stat.chan_id;
+        if (channel != g_wifi_ap_channel && !g_wifi_ap_recover_timer) {
+            g_wifi_ap_recover_timer = bl_os_timer_create(ap_recover, NULL);
+            bl_os_timer_start_once(g_wifi_ap_recover_timer, 3, 0);
+        }
+    }
 }
 
 static void periodic_tsen_reload(void *stateData, struct event *event )
@@ -1264,6 +1321,10 @@ static void stateDisconnect_action_reconnect( void *oldStateData, struct event *
       bssid = profile_msg->bssid;
     }
 
+#if 1
+    freq = 0;//reconnect use full channel scan
+#endif
+
     dump_connect_param(profile_msg, band, freq, bssid ? bssid : null_bssid);
 
 
@@ -1329,6 +1390,7 @@ static void stateDisconnect_enter(void *stateData, struct event *event)
     int is_ok = 0;
 #endif
     disconnectData_t *stateDisconnect_data;
+    int interval, repeat_count;
 
     stateDisconnect_data = stateData;
     bl_os_printf(DEBUG_HEADER "Entering %s state\r\n", (char *)stateData);
@@ -1337,14 +1399,25 @@ static void stateDisconnect_enter(void *stateData, struct event *event)
     bl_os_printf("Entering %s state, up time is %.1fs, cost time is %.1fs\r\n", (char *)stateData, now/1000.0, (now - wifiMgmr.connect_time)/1000.0);
 #endif
     if (wifi_mgmr_profile_autoreconnect_is_enabled(&wifiMgmr, -1) || _pending_task_is_set(WIFI_MGMR_PENDING_TASK_CONNECT_BIT)) {
-        stateDisconnect_data->timer = bl_os_timer_create(disconnect_retry,
-                                                                   stateDisconnect_data);
-        if (_pending_task_is_set(WIFI_MGMR_PENDING_TASK_CONNECT_BIT)) {
-            bl_os_timer_start_once(stateDisconnect_data->timer, 0, 1e6+1);
-        } else {
-            bl_os_timer_start_once(stateDisconnect_data->timer, 2, 0);
-        }
-        stateDisconnect_data->timer_started = 1;
+		interval = (wifiMgmr.autoreconnect_interval > 2) ? (wifiMgmr.autoreconnect_interval) : 2;
+        repeat_count = wifiMgmr.autoreconnect_repeat_count;
+		if (0 == repeat_count || wifiMgmr.autoreconnect_num < repeat_count) {
+			stateDisconnect_data->timer = bl_os_timer_create(disconnect_retry,
+																	   stateDisconnect_data);
+			if (_pending_task_is_set(WIFI_MGMR_PENDING_TASK_CONNECT_BIT)) {
+				bl_os_timer_start_once(stateDisconnect_data->timer, 0, 1e6+1);
+			} else {
+				bl_os_timer_start_once(stateDisconnect_data->timer, interval, 0);
+			}
+			stateDisconnect_data->timer_started = 1;
+			if (0 == repeat_count) {
+				bl_os_printf(DEBUG_HEADER "Will retry connect after %d seconds ...\r\n", interval);
+			}
+			else {
+				 bl_os_printf(DEBUG_HEADER "Will retry connect after %d seconds ... (%d/%d)\r\n", interval, wifiMgmr.autoreconnect_num, repeat_count);
+				wifiMgmr.autoreconnect_num++;
+			}
+		}
     } else {
         bl_os_printf(DEBUG_HEADER "Will NOT retry connect\r\n");
     }
@@ -1549,6 +1622,13 @@ int wifi_mgmr_init(void)
     wifiMgmr.ap_bcn_int = 100;
     wifiMgmr.ap_info_ttl_curr = -1;
     wifiMgmr.scan_item_timeout = WIFI_MGMR_CONFIG_SCAN_ITEM_TIMEOUT;
+
+    wifiMgmr.autoreconnect_num = 0;
+    wifiMgmr.autoreconnect_interval = 0;
+    wifiMgmr.autoreconnect_repeat_count = 0;
+    wifiMgmr.wlan_ap.ipv4.ip = PP_HTONL(LWIP_MAKEU32(192, 168, 11, 1));
+    wifiMgmr.wlan_ap.ipv4.mask = PP_HTONL(LWIP_MAKEU32(255, 255, 255, 0));
+    wifiMgmr.wlan_ap.ipv4.gw = 0;
     return ret;
 }
 
@@ -1720,6 +1800,36 @@ int wifi_mgmr_ap_sta_delete_internal(uint8_t sta_idx)
 int wifi_mgmr_scan_complete_notify()
 {
     wifi_mgmr_scan_complete_callback();
+    return 0;
+}
+
+int wifi_mgmr_sta_state_get_internal(int *state)
+{  
+    if (&stateIdle == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_IDLE;
+    }
+    else if (&stateConnecting == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_CONNECTING;
+    }
+    else if (&stateConnectedIPNo == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_CONNECTED_IP_GETTING;
+    }
+    else if (&stateConnectedIPYes == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_CONNECTED_IP_GOT;
+    }
+    else if (&stateDisconnect == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_DISCONNECT;
+    }
+    else if (&stateIfaceDown == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_IFDOWN;
+    }
+    else if (&stateSniffer == wifiMgmr.m.currentState) {
+        *state = WIFI_STATE_SNIFFER;
+    }
+    else {
+        *state = WIFI_STATE_UNKNOWN;
+    }
+
     return 0;
 }
 

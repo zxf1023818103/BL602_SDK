@@ -24,6 +24,7 @@ struct ping_var
     utils_memp_pool_t *pool;
     struct raw_pcb *pcb;
     struct utils_list req_list;
+    uint32_t ping_time;
 };
 
 struct t_hdr

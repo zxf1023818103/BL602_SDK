@@ -122,35 +122,44 @@ int bl_hbn_enter(hbn_type_t *hbn, uint32_t *time)
         .ldoLevel=HBN_LDO_LEVEL_1P10V,                        /*!< LDO level */
     };
 
-    if (hbn) {
+    /*if (hbn) {
         blog_info("hbn.buflen = %d\r\n", hbn->buflen);
         blog_info("hbn.active = %d\r\n", hbn->active);
         blog_buf(hbn->buf, hbn->buflen);
-    }
+    }*/
 
     cfg.sleepTime = (*time + 999) / 1000; 
-    if ((!hbn->buf) || ((hbn->buflen != 1) && (hbn->buflen != 2))) {
+   /* if ((!hbn->buf) || (hbn->buflen > 2)) {
         blog_error("not support arg.\r\n");
         return -1;
+    }*/
+
+    int i;
+    for (i=0; i<hbn->buflen; i++) {
+        if ((hbn->buf[i]&0x7F) == 7) {
+            cfg.gpioWakeupSrc |= HBN_WAKEUP_GPIO_7;
+            if (hbn->buf[i]&0x80)
+                cfg.gpioTrigType = HBN_GPIO_INT_TRIGGER_ASYNC_RISING_EDGE;
+        } else if ((hbn->buf[i]&0x7F) == 8) {
+            cfg.gpioWakeupSrc |= HBN_WAKEUP_GPIO_8;
+            if (hbn->buf[i]&0x80)
+                cfg.gpioTrigType=HBN_GPIO_INT_TRIGGER_ASYNC_RISING_EDGE;
+        } else if (hbn->buf[i] == 0xFF) {
+            ;
+        } else {
+            printf("invalid arg.\r\n");
+            return -1;
+        }
     }
 
-    if ((hbn->buflen == 1) && ((hbn->buf[0] == 7) || (hbn->buf[0] == 8))) {
-        if (hbn->buf[0] == 7) {
-            blog_info("hbn gpio7.\r\n");
-            cfg.gpioWakeupSrc=HBN_WAKEUP_GPIO_7;
-        } else {
-            blog_info("hbn gpio8.\r\n");
-            cfg.gpioWakeupSrc=HBN_WAKEUP_GPIO_8;
+    if (hbn->buflen > 0) {
+        printf("hbn");
+        for (i=0; i<hbn->buflen; i++) {
+            printf(" gpio%d", hbn->buf[i]);
         }
-    } else if (((hbn->buflen == 2) && (hbn->buf[0] == 7) && (hbn->buf[1] == 8)) ||
-               ((hbn->buflen == 2) && (hbn->buf[0] == 8) && (hbn->buf[1] == 7))
-              ) {
-        blog_info("hbn gpio_all.\r\n");
-        cfg.gpioWakeupSrc=HBN_WAKEUP_GPIO_ALL;
-    } else {
-        blog_error("invalid arg.\r\n");
-        return -1;
+        printf(".\r\n");
     }
+
     cfg.flashCfg = bl_flash_get_flashCfg();
 
     HBN_Clear_IRQ(HBN_INT_GPIO7);

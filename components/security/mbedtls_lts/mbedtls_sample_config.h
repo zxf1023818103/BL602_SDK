@@ -31,6 +31,8 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
+#define MBEDTLS_SHA512_C
+
 #define MBEDTLS_PLATFORM_MEMORY
 #define MBEDTLS_PLATFORM_NO_STD_FUNCTIONS
 
@@ -125,6 +127,8 @@
 #define MBEDTLS_ENTROPY_HARDWARE_ALT
 
 #define MBEDTLS_PLATFORM_STD_MEM_HDR "mbedtls_port_platform.h"
+
+#define MBEDTLS_SSL_SRV_C
 
 // Define BL_MPI_LARGE_NUM_SOFTWARE_MPI to allow operate on very big bignums
 /* #define BL_MPI_LARGE_NUM_SOFTWARE_MPI */

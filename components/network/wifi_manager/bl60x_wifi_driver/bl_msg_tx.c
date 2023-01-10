@@ -368,6 +368,23 @@ int bl_send_monitor_enable(struct bl_hw *bl_hw, struct mm_monitor_cfm *cfm)
         return -ENOMEM;
 
     req->enable = 1;
+    req->phy_lr_on = 0;
+
+    return bl_send_msg(bl_hw, req, 1, MM_MONITOR_CFM, cfm);
+}
+
+int bl_send_monitor_disable(struct bl_hw *bl_hw, struct mm_monitor_cfm *cfm)
+{
+    struct mm_monitor_req *req;
+
+    RWNX_DBG(RWNX_FN_ENTRY_STR);
+
+    req = bl_msg_zalloc(MM_MONITOR_REQ, TASK_MM, DRV_TASK_ID, sizeof(struct mm_monitor_req));
+    if (!req)
+        return -ENOMEM;
+
+    req->enable = 0;
+    req->phy_lr_on = 1;
 
     return bl_send_msg(bl_hw, req, 1, MM_MONITOR_CFM, cfm);
 }

@@ -108,6 +108,7 @@ static u8_t ping_recv(void *arg, struct raw_pcb *pcb, struct pbuf *p, const ip_a
 
                 utils_memp_free(env->pool, find_hdr);
                 env->node_num--;
+                env->ping_time = sys_now() - find_hdr->send_time;
                 pbuf_free(p);
                 return 1; /* eat the packet */
             }
@@ -147,6 +148,7 @@ static void ping_send(struct ping_var *env)
         utils_list_push_back(&env->req_list, (struct utils_list_hdr*)time_hdr);
         env->node_num++;
         env->requests_count++;
+        env->ping_time = 0;
     }
 
 clean:

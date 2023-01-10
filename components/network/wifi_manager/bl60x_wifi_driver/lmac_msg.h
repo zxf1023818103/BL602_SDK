@@ -385,6 +385,7 @@ struct mm_setpowermode_cfm
 struct mm_monitor_req
 {
     uint32_t enable;
+    uint8_t  phy_lr_on;
 };
 
 /// Structure containing the parameters of the @ref MM_MONITOR_CHANNEL_REQ message.

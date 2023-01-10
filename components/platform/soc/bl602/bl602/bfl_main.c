@@ -52,6 +52,7 @@ static HeapRegion_t xHeapRegions[] =
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName )
 {
     puts("Stack Overflow checked\r\n");
+    bl_sys_reset_por();
     while (1) {
         /*empty here*/
     }
@@ -62,9 +63,11 @@ void __attribute__((weak)) vApplicationMallocFailedHook(void)
     printf("Memory Allocate Failed. Current left size is %d bytes\r\n",
         xPortGetFreeHeapSize()
     );
+#if 0
     while (1) {
         /*empty here*/
     }
+#endif
 }
 
 void __attribute__((weak)) vApplicationIdleHook(void)

@@ -36,6 +36,11 @@ extern int bl606a0_wifi_init(wifi_conf_t *conf);
 err_t bl606a0_wifi_netif_init(struct netif *netif);
 static scan_complete_cb_t scan_cb;
 static void* scan_data;
+static int g_ap_dhcp_enable = 1;
+static uint32_t g_ap_dhcp_ip = 0;
+static uint32_t g_ap_dhcp_mask = 0;
+static int g_ap_dhcp_ip_start = 0;
+static int g_ap_dhcp_ip_end = 0;
 
 static void cb_scan_complete(void *data, void *param)
 {
@@ -293,6 +298,7 @@ int wifi_mgmr_sta_connect_ext(wifi_interface_t *wifi_interface, char *ssid, char
 {
     wifi_mgmr_sta_ssid_set(ssid);
     wifi_mgmr_sta_passphr_set(passphr);
+    wifiMgmr.autoreconnect_num = 0;
 
     return wifi_mgmr_api_connect(ssid, passphr, conn_adv_param);
 }
@@ -325,6 +331,11 @@ int wifi_mgmr_sta_disconnect(void)
 {
     wifi_mgmr_api_disconnect();
     return 0;
+}
+
+int wifi_mgmr_sta_state_get(int *state)
+{
+    return wifi_mgmr_sta_state_get_internal(state);
 }
 
 int wifi_sta_ip4_addr_get(uint32_t *addr, uint32_t *mask, uint32_t *gw, uint32_t *dns)
@@ -407,6 +418,14 @@ int wifi_mgmr_sta_autoconnect_disable(void)
     return 0;
 }
 
+int wifi_mgmr_sta_autoconnect_set(int interval_second, int repeat_count)
+{
+    wifiMgmr.autoreconnect_num = 0;
+    wifiMgmr.autoreconnect_interval = interval_second;
+    wifiMgmr.autoreconnect_repeat_count = repeat_count;
+    return 0;
+}
+
 void wifi_mgmr_sta_connect_ind_stat_get(wifi_mgmr_sta_connect_ind_stat_info_t *wifi_mgmr_ind_stat)
 {
     int ssid_len = strlen(wifiMgmr.wifi_mgmr_stat_info.ssid);
@@ -479,9 +498,9 @@ static void wifi_eth_ap_enable(struct netif *netif, uint8_t mac[6])
     ip4_addr_t gw;
 
 #if 1
-    IP4_ADDR(&ipaddr, 192, 168, 11, 1);//XXX address will be configured again by dhcpd
-    IP4_ADDR(&netmask, 255, 255, 255, 0);
-    IP4_ADDR(&gw, 0, 0, 0, 0);
+    ip4_addr_set_u32(&ipaddr, wifiMgmr.wlan_ap.ipv4.ip);
+    ip4_addr_set_u32(&netmask, wifiMgmr.wlan_ap.ipv4.mask);
+    ip4_addr_set_u32(&gw, wifiMgmr.wlan_ap.ipv4.gw);
 #else
     ipaddr.addr = 0;
     netmask.addr = 0;
@@ -509,7 +528,7 @@ static void wifi_eth_ap_enable(struct netif *netif, uint8_t mac[6])
     netifapi_netif_add(netif, &ipaddr, &netmask, &gw, NULL, &bl606a0_wifi_netif_init, &tcpip_input);
     netif->name[0] = 'a';
     netif->name[1] = 'p';
-    netifapi_netif_set_default(netif);
+    //netifapi_netif_set_default(netif);
     netifapi_netif_set_up(netif);
 }
 
@@ -561,9 +580,80 @@ int wifi_mgmr_ap_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask)
     return 0;
 }
 
+int wifi_mgmr_ap_ip_set(uint32_t ip, uint32_t gw, uint32_t mask)
+{
+    bl_os_enter_critical();
+
+    wifiMgmr.wlan_ap.ipv4.ip = ip;
+    wifiMgmr.wlan_ap.ipv4.mask = mask;
+    wifiMgmr.wlan_ap.ipv4.gw = gw;
+
+    bl_os_exit_critical();
+
+    return 0;
+}
+
+int wifi_mgmr_ap_dhcp_get(int *enable)
+{
+    *enable = g_ap_dhcp_enable;
+    return 0;
+}
+
+int wifi_mgmr_ap_dhcp_enable(void)
+{
+    g_ap_dhcp_enable = 1;
+    return 0;
+}
+
+int wifi_mgmr_ap_dhcp_disable(void)
+{
+    g_ap_dhcp_enable = 0;
+    return 0;
+}
+
+int wifi_mgmr_ap_dhcp_range_get(uint32_t *ip, uint32_t *mask, int *start, int *end)
+{
+    if (g_ap_dhcp_ip == 0 && g_ap_dhcp_mask == 0 && g_ap_dhcp_ip_start == 0 && g_ap_dhcp_ip_end == 0)
+        return -1;
+
+    *ip = g_ap_dhcp_ip;
+    *mask = g_ap_dhcp_mask;
+    *start = g_ap_dhcp_ip_start;
+    *end = g_ap_dhcp_ip_end;
+    return 0;
+}
+
+int wifi_mgmr_ap_dhcp_range_set(uint32_t ip, uint32_t mask, int start,  int end)
+{
+    if (ip)
+        g_ap_dhcp_ip = ip;
+    if (mask)
+        g_ap_dhcp_mask = mask;
+    g_ap_dhcp_ip_start = start;
+    g_ap_dhcp_ip_end = end;
+
+    if (wifiMgmr.inf_ap_enabled) {
+        ip4_addr_t ip_start, ip_end;
+        ip_start.addr = (g_ap_dhcp_ip & g_ap_dhcp_mask) | (start << 24);
+        ip_end.addr= (g_ap_dhcp_ip & g_ap_dhcp_mask) | (end << 24);
+        extern err_t dhcp_server_start(struct netif *netif, ip4_addr_t *start, ip4_addr_t *end);
+        dhcp_server_start(&(wifiMgmr.wlan_ap.netif), &ip_start, &ip_end);
+    }
+    return 0;
+}
+
 //TODO this API is still NOT completed, more features need to be implemented
 int wifi_mgmr_ap_start(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel)
 {
+    int state;
+    wifi_mgmr_sta_connect_ind_stat_info_t stat;
+
+    wifi_mgmr_state_get(&state);
+    if (state == WIFI_STATE_CONNECTED_IP_GETTING || state == WIFI_STATE_CONNECTED_IP_GOT) {
+        wifi_mgmr_sta_connect_ind_stat_get(&stat);
+        channel = stat.chan_id;
+    }
+
     wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, -1, 1);
     return 0;
 }
@@ -901,6 +991,18 @@ int wifi_mgmr_set_country_code(char *country_code)
     bl_os_printf("%s:code = %s\r\n", __func__, country_code);
     wifi_mgmr_api_set_country_code(country_code);
 
+    return 0;
+}
+
+int wifi_mgmr_get_country_code(char *country_code)
+{
+    strcpy(country_code, wifiMgmr.country_code);
+    return 0;
+}
+
+int wifi_mgmr_set_hostname(char *hostname)
+{
+    snprintf(wifiMgmr.hostname, MAX_HOSTNAME_LEN_CHECK, "%s", hostname);
     return 0;
 }
 

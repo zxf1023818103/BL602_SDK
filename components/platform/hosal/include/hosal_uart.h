@@ -77,6 +77,7 @@ typedef enum {
  */
 typedef enum {
     HOSAL_STOP_BITS_1,
+    HOSAL_STOP_BITS_1_5,
     HOSAL_STOP_BITS_2
 } hosal_uart_stop_bits_t;
 

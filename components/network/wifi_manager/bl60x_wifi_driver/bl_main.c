@@ -212,6 +212,15 @@ int bl_main_monitor()
     return 0;
 }
 
+int bl_main_monitor_disable()
+{
+    struct mm_monitor_cfm cfm;
+
+    memset(&cfm, 0, sizeof(cfm));
+    bl_send_monitor_disable(&wifi_hw, &cfm);
+    return 0;
+}
+
 int bl_main_phy_up()
 {
     int error = 0;

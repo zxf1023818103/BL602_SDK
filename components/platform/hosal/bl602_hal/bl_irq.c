@@ -8,6 +8,7 @@
 #include "bl_irq.h"
 #include "platform_gpio.h"
 #include <panic.h>
+#include <bl_wdt.h>
 
 #ifdef SYS_ENABLE_COREDUMP
 #include <bl_coredump.h>
@@ -364,6 +365,8 @@ void exception_entry(uint32_t mcause, uint32_t mepc, uint32_t mtval, uintptr_t *
         __dump_exception_code_str(mcause & 0xFFFF);
         //backtrace_now((int (*)(const char *fmt, ...))printf, regs);
         backtrace_now_task((int (*)(const char *s))puts, regs);
+
+        bl_wdt_init(5000);
         
         GLB_GPIO_Func_Init(GPIO_FUN_JTAG, &pin, 1);
         pin = GLB_GPIO_PIN_12;

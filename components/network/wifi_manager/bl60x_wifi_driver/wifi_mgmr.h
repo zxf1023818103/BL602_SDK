@@ -14,7 +14,7 @@
 #ifdef BL602_MATTER_SUPPORT
 #define WIFI_MGMR_MQ_MSG_COUNT (6)
 #else
-#define WIFI_MGMR_MQ_MSG_COUNT (1)
+#define WIFI_MGMR_MQ_MSG_COUNT (3)
 #endif
 
 #define MAC_ADDR_LIST(m) (m)[0], (m)[1], (m)[2], (m)[3], (m)[4], (m)[5]
@@ -283,6 +283,9 @@ typedef struct wifi_mgmr {
     uint8_t ready;//TODO mgmr init process
     char country_code[3];
     uint8_t disable_autoreconnect;
+    uint16_t autoreconnect_num;
+    uint16_t autoreconnect_interval;
+    uint16_t autoreconnect_repeat_count;
     uint16_t ap_bcn_int;
     int channel_nums;
 
@@ -338,6 +341,7 @@ char *wifi_mgmr_auth_to_str(uint8_t auth);
 char *wifi_mgmr_cipher_to_str(uint8_t cipher);
 int wifi_mgmr_api_fw_tsen_reload(void);
 int wifi_mgmr_scan_beacon_save( wifi_mgmr_scan_item_t *scan );
+int wifi_mgmr_sta_state_get_internal(int *state);
 
 static inline int wifi_mgmr_scan_item_is_timeout(wifi_mgmr_t *mgmr, wifi_mgmr_scan_item_t *item)
 {
