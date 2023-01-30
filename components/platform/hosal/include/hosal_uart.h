@@ -230,6 +230,7 @@ int hosal_uart_abr_get(hosal_uart_dev_t *uart, uint8_t mode);
  *	- EIO  if an error occurred with any step
  */
 int hosal_uart_init(hosal_uart_dev_t *uart);
+int hosal_uart_init_only_tx(hosal_uart_dev_t *uart);
 
 /**
  * @brief Poll transmit data on a UART interface
