@@ -7,6 +7,8 @@
 typedef void (*cb_uart_notify_t)(void *arg);
 int bl_uart_gpio_init(uint8_t id, uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baudrate);
 int bl_uart_init(uint8_t id, uint8_t tx_pin, uint8_t rx_pin, uint8_t cts_pin, uint8_t rts_pin, uint32_t baudrate);
+int bl_uart_init_ex(uint8_t id, uint8_t tx_pin, uint8_t rx_pin, uint8_t cts_pin, uint8_t rts_pin, uint32_t baudrate, 
+                 UART_DataBits_Type dataBits, UART_StopBits_Type stopBits, UART_Parity_Type parity);
 int bl_uart_debug_early_init(uint32_t baudrate);
 int bl_uart_early_init(uint8_t id, uint8_t tx_pin, uint32_t baudrate);
 
