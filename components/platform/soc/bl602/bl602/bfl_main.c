@@ -35,7 +35,12 @@
 #include <bl_romfs.h>
 #endif
 
+#ifdef CUSTOM_LOG_IO
+HOSAL_UART_DEV_DECL(uart_stdio, 0, CUSTOM_LOG_TX_IO, CUSTOM_LOG_RX_IO, CUSTOM_LOG_RX_BAUD);
+#else
 HOSAL_UART_DEV_DECL(uart_stdio, 0, 16, 7, 2000000);
+// HOSAL_UART_DEV_DECL(uart_stdio, 0, 4, 0xff, 921600);
+#endif
 
 extern uint8_t _heap_start;
 extern uint8_t _heap_size; // @suppress("Type cannot be resolved")
@@ -287,13 +292,32 @@ static void system_early_init(void)
     hal_board_cfg(0);
 }
 
+#include "bl602_glb.h"
+
+void log_port_reset(void)
+{
+    GLB_GPIO_Cfg_Type cfg;
+
+    cfg.drive = 0;
+    cfg.smtCtrl = 1;
+    cfg.gpioPin = 16;
+    cfg.gpioFun = GPIO0_FUN_UNUSED3; //all the function number of GPIO is the same, we use def from GPIO0 here
+    cfg.gpioMode = GPIO_MODE_OUTPUT;
+    cfg.pullType = GPIO_PULL_NONE;
+    GLB_GPIO_Init(&cfg);
+
+    cfg.gpioPin = 7;
+    GLB_GPIO_Init(&cfg);
+}
+
 void bfl_main()
 {
     TaskHandle_t aos_loop_proc_task;
     
     bl_sys_early_init();
     /*Init UART In the first place*/
-    hosal_uart_init(&uart_stdio);
+    log_port_reset();
+    hosal_uart_init_only_tx(&uart_stdio);
     puts("Starting bl602 now....\r\n");
 
     _dump_boot_info();
