@@ -41,6 +41,7 @@ int at_wifi_config_init(void)
     at_wifi_config->switch_mode_auto_conn = WIFI_AUTOCONN_ENABLE;
     if (!at_config_read(AT_CONFIG_KEY_WIFI_STA_INFO, &at_wifi_config->sta_info, sizeof(wifi_sta_info))) {
         memset(&at_wifi_config->sta_info, 0, sizeof(wifi_sta_info));
+        at_wifi_config->sta_info.pmf = 1;
         at_wifi_config->sta_info.jap_timeout = 15;
     }
     if (!at_config_read(AT_CONFIG_KEY_WIFI_RECONN_CFG, &at_wifi_config->reconn_cfg, sizeof(wifi_sta_reconnect))) {

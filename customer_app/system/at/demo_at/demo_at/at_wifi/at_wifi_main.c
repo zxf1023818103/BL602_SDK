@@ -161,8 +161,12 @@ static void wifi_sta_connect(void)
         flags |= WIFI_CONNECT_STOP_SCAN_ALL_CHANNEL_IF_TARGET_AP_FOUND;
     if (at_wifi_config->sta_info.pmf & 0x01)
         flags |= WIFI_CONNECT_PMF_CAPABLE;
+	else
+        flags &= (~WIFI_CONNECT_PMF_CAPABLE);
     if (at_wifi_config->sta_info.pmf & 0x02)
         flags |= WIFI_CONNECT_PMF_REQUIRED;
+	else
+        flags &= (~WIFI_CONNECT_PMF_REQUIRED);
 
     if (!g_wifi_sta_interface) {
         g_wifi_sta_interface = wifi_mgmr_sta_enable();

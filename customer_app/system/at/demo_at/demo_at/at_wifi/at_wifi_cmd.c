@@ -160,7 +160,7 @@ static int at_setup_cmd_cwjap(int argc, const char **argv)
     int listen_interval_valid = 0, listen_interval = 3;
     int scan_mode_valid = 0, scan_mode = 1;
     int jap_timeout_valid = 0, jap_timeout = 15;
-    int pmf_valid = 0, pmf = 0;
+    int pmf_valid = 0, pmf = 1;
 
     AT_CMD_PARSE_STRING(0, ssid, sizeof(ssid));
     AT_CMD_PARSE_STRING(1, password, sizeof(password));
