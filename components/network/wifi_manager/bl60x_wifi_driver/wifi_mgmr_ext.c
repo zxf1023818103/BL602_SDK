@@ -534,14 +534,18 @@ static void wifi_eth_ap_enable(struct netif *netif, uint8_t mac[6])
 
 wifi_interface_t wifi_mgmr_ap_enable()
 {
-    //bl_os_printf("wifiMgmr.wlan_ap.mode = %d \r\n", wifiMgmr.wlan_ap.mode);
-    //TODO should add lock to avoid being called at the same time
-    if (wifiMgmr.inf_ap_enabled) {
-        /*nothing here*/
-    } else {
-        wifiMgmr.wlan_ap.mode = 1;//ap mode
-        wifi_eth_ap_enable(&(wifiMgmr.wlan_ap.netif), wifiMgmr.wlan_ap.mac);
+    static int done = 0;
+
+    if (1 == done) {
+        bl_os_printf("----- AP has already been enable\r\n");
+        return &(wifiMgmr.wlan_ap);
     }
+    done = 1;
+
+    bl_os_printf("---------AP enable\r\n");
+
+    wifiMgmr.wlan_ap.mode = 1;//ap mode
+    wifi_eth_ap_enable(&(wifiMgmr.wlan_ap.netif), wifiMgmr.wlan_ap.mac);
     return &(wifiMgmr.wlan_ap);
 }
 

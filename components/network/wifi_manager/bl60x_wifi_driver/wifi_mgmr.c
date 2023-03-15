@@ -605,8 +605,9 @@ static bool stateGlobalGuard_stop(void *ev, struct event *event )
     bl_os_printf(DEBUG_HEADER "Stopping DHCP on AP interface...\r\n");
 err_t dhcp_server_stop(struct netif *netif);
     netifapi_netif_common(&(wifiMgmr.wlan_ap.netif), NULL, dhcp_server_stop);
-    bl_os_printf(DEBUG_HEADER "Removing ETH interface ...\r\n");
-    netifapi_netif_remove(&(wifiMgmr.wlan_ap.netif));
+    netifapi_netif_set_link_down(&(wifiMgmr.wlan_ap.netif));
+    // bl_os_printf(DEBUG_HEADER "Removing ETH interface ...\r\n");
+    // netifapi_netif_remove(&(wifiMgmr.wlan_ap.netif));
     wifiMgmr.inf_ap_enabled = 0;
     aos_post_event(EV_WIFI, CODE_WIFI_ON_AP_STOPPED, 0);
 
