@@ -31,7 +31,7 @@
 
 #define EVT_GROUP_SPI_TX    (1<<0)
 #define EVT_GROUP_SPI_RX    (1<<1)
-#define EVT_GROUP_SPI_TR    (EVT_GROUP_SPI_TX | EVT_GROUP_SPI_RX)
+#define EVT_GROUP_SPI_TR    (EVT_GROUP_SPI_RX)  // (EVT_GROUP_SPI_TX | EVT_GROUP_SPI_RX)
 
 static void hosal_spi_int_handler_tx(void *arg, uint32_t flag);
 static void hosal_spi_int_handler_rx(void *arg, uint32_t flag);
@@ -61,15 +61,16 @@ static void spi_basic_init(hosal_spi_dev_t *arg)
     SPI_ID_Type spi_id; //TODO change SPI_ID_Type
     
     spi_id = hw_arg->port;
-
+    GLB_AHB_Slave1_Reset(BL_AHB_SLAVE1_SPI);
     SPI_SetClock(spi_id, hw_arg->config.freq);
 
+    SPI_SetDeglitchCount(SPI_ID_0, 0x2);
     /* spi config */
     spicfg.deglitchEnable = DISABLE;
     spicfg.continuousEnable = ENABLE;
     spicfg.byteSequence = SPI_BYTE_INVERSE_BYTE0_FIRST,
     spicfg.bitSequence = SPI_BIT_INVERSE_MSB_FIRST,
-    spicfg.frameSize = SPI_FRAME_SIZE_8;
+    spicfg.frameSize = SPI_FRAME_SIZE_32;
 
     if (hw_arg->config.polar_phase == 0) {
         spicfg.clkPhaseInv = SPI_CLK_PHASE_INVERSE_0;
@@ -101,7 +102,7 @@ static void spi_basic_init(hosal_spi_dev_t *arg)
     fifocfg.txFifoThreshold = 1;
     fifocfg.rxFifoThreshold = 1;
     if (hw_arg->config.dma_enable) {
-        fifocfg.txFifoDmaEnable = ENABLE;
+        fifocfg.txFifoDmaEnable = DISABLE;
         fifocfg.rxFifoDmaEnable = ENABLE;
         SPI_FifoConfig(spi_id,&fifocfg);
     } else {
@@ -120,8 +121,8 @@ static int lli_list_init(DMA_LLI_Ctrl_Type **pptxlli, DMA_LLI_Ctrl_Type **pprxll
     uint32_t remainder;
     struct DMA_Control_Reg dmactrl;
 
-    count = length / LLI_BUFF_SIZE;
-    remainder = length % LLI_BUFF_SIZE;
+    count = length / 4 / LLI_BUFF_SIZE;
+    remainder = length / 4 % LLI_BUFF_SIZE;
 
     if (remainder != 0) {
         count = count + 1;
@@ -129,8 +130,8 @@ static int lli_list_init(DMA_LLI_Ctrl_Type **pptxlli, DMA_LLI_Ctrl_Type **pprxll
 
     dmactrl.SBSize = DMA_BURST_SIZE_1;
     dmactrl.DBSize = DMA_BURST_SIZE_1;
-    dmactrl.SWidth = DMA_TRNS_WIDTH_8BITS;
-    dmactrl.DWidth = DMA_TRNS_WIDTH_8BITS;
+    dmactrl.SWidth = DMA_TRNS_WIDTH_32BITS;
+    dmactrl.DWidth = DMA_TRNS_WIDTH_32BITS;
     dmactrl.Prot = 0;
     dmactrl.SLargerD = 0;
 
@@ -259,15 +260,15 @@ static int hosal_spi_dma_trans(hosal_spi_dev_t *arg, uint8_t *TxData, uint8_t *R
     }
 
     if (NULL != RxData) {
-        hosal_dma_irq_callback_set(dma_arg->rx_dma_ch, hosal_spi_int_handler_rx, arg);
         DMA_LLI_Init(dma_arg->rx_dma_ch, &rxllicfg);
+        hosal_dma_irq_callback_set(dma_arg->rx_dma_ch, hosal_spi_int_handler_rx, arg);
         DMA_LLI_Update(dma_arg->rx_dma_ch,(uint32_t)prxlli);
         hosal_dma_chan_start(dma_arg->rx_dma_ch);
     }
 
     if (NULL != TxData) {
-        hosal_dma_irq_callback_set(dma_arg->tx_dma_ch, hosal_spi_int_handler_tx, arg);
         DMA_LLI_Init(dma_arg->tx_dma_ch, &txllicfg);
+        hosal_dma_irq_callback_set(dma_arg->tx_dma_ch, hosal_spi_int_handler_tx, arg);
         DMA_LLI_Update(dma_arg->tx_dma_ch,(uint32_t)ptxlli);
         hosal_dma_chan_start(dma_arg->tx_dma_ch);
     }
@@ -344,7 +345,7 @@ static void hosal_spi_int_handler_rx(void *arg, uint32_t flag)
     if (NULL != dev) {
         if (dev->config.dma_enable) {
             spi_dma_priv_t *priv=  (spi_dma_priv_t *)dev->priv;
-            bl_dma_int_clear(priv->tx_dma_ch);
+            bl_dma_int_clear(priv->rx_dma_ch);
             if (priv->spi_event_group != NULL) {
                 xResult = xEventGroupSetBitsFromISR(priv->spi_event_group, EVT_GROUP_SPI_RX, &xHigherPriorityTaskWoken);
 
@@ -507,13 +508,12 @@ static void hosal_spi_gpio_init(hosal_spi_dev_t *arg)
         return;
     }
 
-    
-        GLB_GPIO_Type gpiopins[4];
-        gpiopins[0] = arg->config.pin_mosi + 1; //pin cs
-        gpiopins[1] = arg->config.pin_clk;
-        gpiopins[2] = arg->config.pin_mosi;
-        gpiopins[3] = arg->config.pin_miso;
-        GLB_GPIO_Func_Init(GPIO_FUN_SPI,gpiopins,sizeof(gpiopins)/sizeof(gpiopins[0]));
+    GLB_GPIO_Type gpiopins[4];
+    gpiopins[0] = 22;
+    gpiopins[1] = arg->config.pin_clk;
+    gpiopins[2] = arg->config.pin_mosi;
+    gpiopins[3] = arg->config.pin_miso;
+    GLB_GPIO_Func_Init(GPIO_FUN_SPI,gpiopins,sizeof(gpiopins)/sizeof(gpiopins[0]));
 
     if (arg->config.mode == 0) {
         GLB_Set_SPI_0_ACT_MOD_Sel(GLB_SPI_PAD_ACT_AS_MASTER);
@@ -582,6 +582,7 @@ int hosal_spi_finalize(hosal_spi_dev_t *spi)
         if (spi_priv->rx_dma_ch >= 0) {
             hosal_dma_chan_release(spi_priv->rx_dma_ch);
         }
+        vEventGroupDelete(spi_priv->spi_event_group);
         vPortFree(spi_priv);
     } else {
         spi_priv_t *spi_priv = (spi_priv_t *)spi->priv;
