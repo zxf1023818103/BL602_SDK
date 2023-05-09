@@ -767,6 +767,12 @@ static void stateExit( void *stateData, struct event *event )
 
 static void stateEnter( void *stateData, struct event *event )
 {
+    if (_pending_task_is_set(WIFI_MGMR_PENDING_TASK_SCAN_BIT)) {
+        bl_os_printf(DEBUG_HEADER "Pending Scan Sent\r\n");
+        bl_main_scan(&wifiMgmr.wlan_sta.netif, NULL, 0, (struct mac_addr *)&mac_addr_bcst, NULL, 0, 0);
+        _pending_task_clr_safely(WIFI_MGMR_PENDING_TASK_SCAN_BIT);
+    }
+
    bl_os_printf(DEBUG_HEADER "Entering %s state\r\n", (char *)stateData);
 }
 
@@ -1421,6 +1427,7 @@ static void stateDisconnect_enter(void *stateData, struct event *event)
 		}
     } else {
         bl_os_printf(DEBUG_HEADER "Will NOT retry connect\r\n");
+        wifi_mgmr_api_common_msg(WIFI_MGMR_EVENT_APP_IDLE, (void*)0x1, (void*)0x2);
     }
     aos_post_event(EV_WIFI, CODE_WIFI_ON_DISCONNECT, wifiMgmr.wifi_mgmr_stat_info.status_code);
 
