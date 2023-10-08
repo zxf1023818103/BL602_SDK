@@ -662,6 +662,11 @@ int wifi_mgmr_ap_start(wifi_interface_t *interface, char *ssid, int hidden_ssid,
     return 0;
 }
 
+int wifi_mgmr_ap_chan_switch(wifi_interface_t *interface, int channel, uint8_t cs_count)
+{
+    return wifi_mgmr_api_chan_switch(channel, cs_count);
+}
+
 int wifi_mgmr_ap_start_adv(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, uint8_t use_dhcp)
 {
     wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, -1, use_dhcp);
