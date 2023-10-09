@@ -13,7 +13,7 @@
 #include <lwip/netifapi.h>
 #include <lwip/dns.h>
 
-#ifdef BL602_MATTER_SUPPORT
+#if defined(BL602_MATTER_SUPPORT) || defined(CFG_IPV6)
 #include <lwip/dhcp6.h>
 #endif
 
@@ -467,7 +467,7 @@ static bool stateSnifferGuard_ChannelSet( void *ch, struct event *event )
     return false;
 }
 
-#ifdef BL602_MATTER_SUPPORT
+#if defined(BL602_MATTER_SUPPORT) || defined(CFG_IPV6)
 static struct dhcp6 bl_dhcp6;
 #endif
 static bool stateSnifferGuard_raw_send(void *ch, struct event *event)
@@ -488,7 +488,7 @@ static bool stateSnifferGuard_raw_send(void *ch, struct event *event)
         bl_os_log_info("------>>>>>> RAW Send CMD, pkt %p, len %d\r\n", pkt, len);
         bl_main_raw_send(pkt, len);
     }
-    #ifdef BL602_MATTER_SUPPORT
+    #if defined(BL602_MATTER_SUPPORT) || defined(CFG_IPV6)
     dhcp6_set_struct(&(wifiMgmr.wlan_sta.netif), &bl_dhcp6);
     netifapi_netif_common(&(wifiMgmr.wlan_sta.netif), dhcp6_enable_stateless, NULL);
     #endif

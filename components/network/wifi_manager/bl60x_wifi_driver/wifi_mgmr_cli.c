@@ -438,6 +438,16 @@ static void wifi_sta_ip_info(char *buf, int len, int argc, char **argv)
     bl_os_printf("GW  :   %s \r\n", ip4addr_ntoa(&gw));
     bl_os_printf("DNS1:   %s \r\n", ip4addr_ntoa(&dns1));
     bl_os_printf("DNS2:   %s \r\n", ip4addr_ntoa(&dns2));
+#ifdef CFG_IPV6
+    int wifi_mgmr_sta_ipv6_get(uint8_t index, ip6_addr_t *ip6addr, uint8_t *state);
+    ip6_addr_t ip6;
+    uint8_t state, index = 0;
+    while (!wifi_mgmr_sta_ipv6_get(index, &ip6, &state))
+    {
+        bl_os_printf("IP6 (%d):   %s, state: %d\r\n", index, ip6addr_ntoa(&ip6), state);
+        index++;
+    }
+#endif
     bl_os_puts(  "Power Table (dbm):\r\n");
     bl_os_puts(  "--------------------------------\r\n");
     bl_os_printf("  11b: %u %u %u %u             (1Mbps 2Mbps 5.5Mbps 11Mbps)\r\n",

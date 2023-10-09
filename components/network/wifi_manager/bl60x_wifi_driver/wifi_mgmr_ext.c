@@ -253,6 +253,19 @@ int wifi_mgmr_sta_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask)
     return 0;
 }
 
+#ifdef CFG_IPV6
+int wifi_mgmr_sta_ipv6_get(uint8_t index, ip6_addr_t *ip6addr, uint8_t *state)
+{
+    if ((index >= LWIP_IPV6_NUM_ADDRESSES) || !ip6addr || !state) {
+        return -1;
+    }
+
+    *ip6addr = *(const ip6_addr_t *)netif_ip6_addr(&wifiMgmr.wlan_sta.netif, index);
+    *state = netif_ip6_addr_state(&wifiMgmr.wlan_sta.netif, index);
+    return 0;
+}
+#endif
+
 int wifi_mgmr_sta_dns_get(uint32_t *dns1, uint32_t *dns2)
 {
     const ip_addr_t* dns;
