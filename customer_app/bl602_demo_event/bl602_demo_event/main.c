@@ -516,6 +516,12 @@ static void event_cb_wifi_event(input_event_t *event, void *private_data)
             printf("[SYS] Memory left is %d Bytes\r\n", xPortGetFreeHeapSize());
         }
         break;
+        case CODE_WIFI_ON_GOT_IP6:
+        {
+            printf("[APP] [EVT] GOT IPv6 %lld\r\n", aos_now_ms());
+            printf("[SYS] Memory left is %d Bytes\r\n", xPortGetFreeHeapSize());
+        }
+        break;
         case CODE_WIFI_ON_PROV_SSID:
         {
             printf("[APP] [EVT] [PROV] [SSID] %lld: %s\r\n",
