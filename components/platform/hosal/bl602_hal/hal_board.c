@@ -4,7 +4,7 @@
 #include <bl_wifi.h>
 #include <hal_boot2.h>
 #include <hal_sys.h>
-
+#include <bl602_mfg_efuse.h>
 #include <libfdt.h>
 
 #include <blog.h>
@@ -555,7 +555,7 @@ static void update_poweroffset_config_rftv(uint32_t tlv_addr, const char *pw_mod
                         /*incremental mode*/
                         blog_debug("Use pwr offset from f in incremental mode\r\n");
                         for (j = 0; j < sizeof(poweroffset); j++) {
-                            poweroffset[j] = (poweroffset_tmp[j] - 10)*4;
+                            poweroffset[j] += (poweroffset_tmp[j] - 10)*4;
                         }
                     }
                     goto break_scan;
@@ -702,6 +702,7 @@ enum {
     E_RF_TCAL_UPDATE_PARAM = 0,
 };
 void rf_pri_update_tcal_param(uint8_t operation);//FIXME
+void rf_pri_update_tx_power_offset_res(int8_t power_offset);
 #define TCAL_PARA_CHANNELS          5
 
 static int update_rf_temp_field(const void *fdt, int wifi_offset, const char *name)
@@ -908,6 +909,8 @@ static int hal_board_load_fdt_info(const void *dtb)
     int lentmp = 0;
     int i;
 
+    int8_t pwr_offset_ate;
+
     wifi_offset = fdt_subnode_offset(fdt, 0, "wifi");
     if (!(wifi_offset > 0)) {
        blog_error("wifi NULL.\r\n");
@@ -929,6 +932,13 @@ static int hal_board_load_fdt_info(const void *dtb)
         }  else {
             blog_error("country_code NULL.\r\n");
         }
+    }
+
+    if (0 == mfg_efuse_read_poweroffset_ate(&pwr_offset_ate)) {
+        rf_pri_update_tx_power_offset_res(pwr_offset_ate);
+        blog_info("pwr_offset_ate %d\r\n", pwr_offset_ate);
+    } else {
+        blog_info("pwr_offset_ate not found\r\n");
     }
 
     if (0 == __try_load_rftlv()) {
