@@ -260,65 +260,68 @@ PDS_DEFAULT_LV_CFG_Type ATTR_TCM_CONST_SECTION pdsCfgLevel3 = {
     }
 };
 PDS_DEFAULT_LV_CFG_Type ATTR_TCM_CONST_SECTION pdsCfgLevel7 = {
-    .pdsCtl = {
-        .pdsStart     =1,
-        .sleepForever =0,
-        .xtalForceOff =0,
-        .saveWiFiState=0,
-        .dcdc18Off    =1,
-        .bgSysOff     =1,
-        .clkOff       =1,
-        .memStby      =1,
-        .isolation    =1,
-        .waitXtalRdy  =0,
-        .pdsPwrOff    =1,
-        .xtalOff      =1,
-        .socEnbForceOn=0,
-        .pdsRstSocEn  =0,
-        .pdsRC32mOn   =0,
-        .pdsLdoVselEn =0,
-        .wfiMask      =0,       /* aviod cpu catch wfi signal */
-        .ldo11Off     =0,       /* E_ITEM_03 */
-        .pdsLdoVol    =0xA,
-        .pdsCtlRfSel  =2,
-        .pdsCtlPllSel =0,
-    },
-    .pdsCtl2 = {
-        .forceCpuPwrOff   =0,
-        .forceWbPwrOff    =0,
-        .forceCpuIsoPwrOff=0,
-        .forceWbIsoPwrOff =0,
-        .forceCpuPdsRst   =0,
-        .forceWbPdsRst    =0,
-        .forceCpuMemStby  =0,
-        .forceWbMemStby   =0,
-        .forceCpuGateClk  =0,
-        .forceWbGateClk   =0,
-    },
-    .pdsCtl3 = {
-        .forceMiscPwrOff =0,
-        .forceMiscIsoEn  =0,
-        .forceMiscPdsRst =0,
-        .forceMiscMemStby=0,
-        .forceMiscGateClk=0,
-        .CpuIsoEn        =1,
-        .WbIsoEn         =1,
-        .MiscIsoEn       =1,
-    },
+    .pdsCtl =
+        {
+            .pdsStart = 1,
+            .sleepForever = 0,
+            .xtalForceOff = 0,
+            .saveWiFiState = 0,
+            .dcdc18Off = 1,
+            .bgSysOff = 1,
+            .clkOff = 1,
+            .memStby = 1,
+            .isolation = 1,
+            .waitXtalRdy = 0,
+            .pdsPwrOff = 1,
+            .xtalOff = 0,
+            .socEnbForceOn = 0,
+            .pdsRstSocEn = 0,
+            .pdsRC32mOn = 0,
+            .pdsLdoVselEn = 0,
+            .wfiMask = 0,  /* aviod cpu catch wfi signal */
+            .ldo11Off = 0, /* E_ITEM_03 */
+            .pdsLdoVol = 0xA,
+            .pdsCtlRfSel = 2,
+            .pdsCtlPllSel = 0,
+        },
+    .pdsCtl2 =
+        {
+            .forceCpuPwrOff = 0,
+            .forceWbPwrOff = 0,
+            .forceCpuIsoPwrOff = 0,
+            .forceWbIsoPwrOff = 0,
+            .forceCpuPdsRst = 0,
+            .forceWbPdsRst = 0,
+            .forceCpuMemStby = 0,
+            .forceWbMemStby = 0,
+            .forceCpuGateClk = 0,
+            .forceWbGateClk = 0,
+        },
+    .pdsCtl3 =
+        {
+            .forceMiscPwrOff = 0,
+            .forceMiscIsoEn = 0,
+            .forceMiscPdsRst = 0,
+            .forceMiscMemStby = 0,
+            .forceMiscGateClk = 0,
+            .CpuIsoEn = 1,
+            .WbIsoEn = 1,
+            .MiscIsoEn = 1,
+        },
     .pdsCtl4 = {
-        .cpuPwrOff  =1,
-        .cpuRst     =1,
-        .cpuMemStby =1,
-        .cpuGateClk =1,
-        .WbPwrOff   =1,
-        .WbRst      =1,
-        .WbMemStby  =1,
-        .WbGateClk  =1,
-        .MiscPwrOff =1,
-        .MiscRst    =1,
-        .MiscMemStby=1,
-        .MiscGateClk=1,
-    }
+        .cpuPwrOff = 1,
+        .cpuRst = 1,
+        .cpuMemStby = 1,
+        .cpuGateClk = 1,
+        .WbPwrOff = 1,
+        .WbRst = 1,
+        .WbMemStby = 1,
+        .WbGateClk = 1,
+        .MiscPwrOff = 1,
+        .MiscRst = 1,
+        .MiscMemStby = 1,
+        .MiscGateClk = 1,
+        }
 };
 PDS_RAM_CFG_Type ATTR_TCM_CONST_SECTION ramCfg = {
     .PDS_RAM_CFG_0KB_16KB_CPU_RAM_RET =1,
@@ -341,17 +344,45 @@ void ATTR_TCM_SECTION PDS_Update_Flash_Ctrl_Setting(uint8_t fastClock)
     SF_Ctrl_Set_Clock_Delay(fastClock);
 }
 
+/*  flash cfg in efuse
+0: internal flash with io switch,
+1: internal flash no io switch,
+2: GPIO 17-22,
+3: GPIO 0-2&20-22
+*/
+uint8_t ATTR_TCM_SECTION PDS_Get_Flash_IO(void)
+{
+    uint32_t tmpVal =0;
+
+    tmpVal = *((volatile uint32_t *)0x40007010);
+
+    return (uint8_t)((tmpVal >> 16)& 0x3);
+}
+
+
 void ATTR_TCM_SECTION PDS_Power_On_Flash_Pad(void)
 {
-    /* Turn on Flash pad, GPIO23 - GPIO28 */
-    SF_Cfg_Init_Internal_Flash_Gpio();
+    uint8_t b_flash_io_type = 0;
+
+    b_flash_io_type = PDS_Get_Flash_IO();
+    if (b_flash_io_type == 0) {
+        // /* Turn on Flash pad, GPIO23 - GPIO28 */
+        // SF_Cfg_Init_Internal_Flash_Gpio();
+        /* Init flash gpio */
+        SF_Cfg_Init_Flash_Gpio(0,1);
+    } else if (b_flash_io_type == 1) {
+        SF_Cfg_Init_Flash_Gpio(1,0);
+    } else if (b_flash_io_type == 2) {
+        SF_Cfg_Init_Flash_Gpio(2,0);
+    } else if (b_flash_io_type == 3) {
+        SF_Cfg_Init_Flash_Gpio(3,0);
+    } else {
+        printf("[E]FLASH IO CFG Error!!!\r\n");
+    }
 }
 
 void ATTR_TCM_SECTION PDS_Power_On_Flash(PDS_APP_CFG_Type *cfg)
 {
-    /* Init flash gpio */
-    SF_Cfg_Init_Flash_Gpio(0,1);
-
     SF_Ctrl_Set_Owner(SF_CTRL_OWNER_SAHB);
 
     /* Restore flash */
@@ -360,6 +391,12 @@ void ATTR_TCM_SECTION PDS_Power_On_Flash(PDS_APP_CFG_Type *cfg)
 
 void ATTR_TCM_SECTION PDS_Mode_Enter(PDS_APP_CFG_Type *cfg)
 {
+    uint8_t b_flash_io_type = 0;
+
+    b_flash_io_type = PDS_Get_Flash_IO();
+    printf("flash io type:%d\r\n",b_flash_io_type);
+    BL602_Delay_MS(500);
+
     PDS_DEFAULT_LV_CFG_Type *pPdsCfg = NULL;
 
     if(cfg->useXtal32k){
@@ -404,9 +441,29 @@ void ATTR_TCM_SECTION PDS_Mode_Enter(PDS_APP_CFG_Type *cfg)
 
     /* if pdsLevel!=2 and pdsLevel!=3, power_down_flash_pin */
     if(cfg->turnOffFlashPad){
-        /* turn_off_internal_gpio, GPIO23 - GPIO28 */
-        for(uint32_t pin=23;pin<29;pin++){
-            GLB_GPIO_Set_HZ(pin);
+        if (b_flash_io_type == 0) {
+            /* turn_off_internal_gpio, GPIO23 - GPIO28 */
+            for(uint32_t pin=23;pin<29;pin++){
+                GLB_GPIO_Set_HZ(pin);
+            }
+        } else if (b_flash_io_type == 1) {
+            /* turn_off_internal_gpio, GPIO23 - GPIO28 */
+            for(uint32_t pin=23;pin<29;pin++){
+                GLB_GPIO_Set_HZ(pin);
+            }
+        } else if (b_flash_io_type == 2) {
+            /* turn_of_ext_gpio, GPIO17 - GPIO22 */
+            for(uint32_t pin=17;pin<23;pin++){
+                GLB_GPIO_Set_HZ(pin);
+            }
+        } else if (b_flash_io_type == 3) {
+            /* turn_off_ext_gpio, GPIO0 - GPIO2, GPIO20 - GPIO22 */
+            for(uint32_t pin=0;pin<3;pin++){
+                GLB_GPIO_Set_HZ(pin);
+            }
+            for(uint32_t pin=20;pin<23;pin++){
+                GLB_GPIO_Set_HZ(pin);
+            }
         }
     }
 
@@ -415,6 +472,7 @@ void ATTR_TCM_SECTION PDS_Mode_Enter(PDS_APP_CFG_Type *cfg)
         GLB_Set_System_CLK(GLB_PLL_XTAL_NONE,GLB_SYS_CLK_RC32M);
         PDS_Update_Flash_Ctrl_Setting(0);
         PDS_Power_Off_PLL();
+        AON_Power_Off_XTAL();
     }
 
     if(cfg->pdsLevel==0){

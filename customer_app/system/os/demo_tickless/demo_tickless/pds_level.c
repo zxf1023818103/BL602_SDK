@@ -12,9 +12,10 @@
 #include "bflb_platform.h"
 #include <bl_irq.h>
 #include <bl_gpio.h>
+#include <bl_flash.h>
 #include <bl602_glb.h>
 #include "pds_level.h"
-#include <hal_sys.h> 
+#include <hal_sys.h>
 
 #define HBN_RAM_FLAG_PATTEN                 (0x12344321)
 #define HBN_RAM_FLAG_ADDR                   (HBN_RAM_BASE)
@@ -177,21 +178,30 @@ PDS_APP_CFG_Type pdsCfg= {
         .useXtal32k=0,                     /*!< Wheather use xtal 32K as 32K clock source,otherwise use rc32k */
         .pdsAonGpioWakeupSrc=PDS_AON_WAKEUP_GPIO_NONE,            /*!< PDS level 0/1/2/3 mode always on GPIO Wakeup source(HBN wakeup pin) */
         .pdsAonGpioTrigType=PDS_AON_GPIO_INT_TRIGGER_SYNC_FALLING_EDGE,    /*!< PDS level 0/1/2/3 mode always on GPIO Triger type(HBN wakeup pin) */
-        .powerDownFlash=0,                 /*!< Whether power down flash */
-        .turnOffFlashPad=0,                /*!< Whether turn off embedded flash pad */
+        .powerDownFlash=1,                 /*!< Whether power down flash */
+        .turnOffFlashPad=1,                /*!< Whether turn off embedded flash pad */
         .ocramRetetion=0,                  /*!< Whether OCRAM Retention */
         .turnoffPLL=1,                     /*!< Whether trun off PLL */
         .xtalType=GLB_PLL_XTAL_40M,        /*!< XTal type, used when user choose turn off PLL, PDS will turn on when exit PDS mode */
         .flashContRead=0,                  /*!< Whether enable flash continue read */
         .sleepTime=2*65536,                   /*!< PDS sleep time */
-        .flashCfg=&flashCfg_Gd_Q80E_Q16E,  /*!< Flash config pointer, used when power down flash */
+        .flashCfg=NULL,
         .ldoLevel=PDS_LDO_LEVEL_1P10V,     /*!< LDO level */
         .preCbFun=NULL,        /*!< Pre callback function */
         .postCbFun=NULL,      /*!< Post callback function */
 };
 
+extern BL_Err_Type flash_get_cfg(uint8_t **cfg_addr, uint32_t *len);
 void ATTR_TCM_SECTION enter_pds_mode(uint32_t sleep_cycle)
 {
+    __asm volatile( "csrc mstatus, 8" );
+
+    bl_irq_init();
+
+    pdsCfg.flashCfg =  bl_flash_get_flashCfg();
+    // bflb_platform_dump((uint8_t *)pdsCfg.flashCfg, sizeof(SPI_Flash_Cfg_Type));
+
+    printf("enter_pds_mode\r\n");
     pdsCfg.sleepTime = sleep_cycle;
     /* normal work LDO level */
     HBN_Set_Ldo11_All_Vout(HBN_LDO_LEVEL_1P10V);
@@ -204,7 +214,7 @@ void ATTR_TCM_SECTION enter_pds_mode(uint32_t sleep_cycle)
     
     /* clear and mask PDS int */
     PDS_IntMask(PDS_INT_WAKEUP,UNMASK);
-    PDS_IntMask(PDS_INT_HBN_GPIO_IRRX_BLE_WIFI,MASK);
+    PDS_IntMask(PDS_INT_HBN_GPIO_IRRX_BLE_WIFI,UNMASK);
     PDS_IntMask(PDS_INT_RF_DONE,MASK);
     PDS_IntMask(PDS_INT_PLL_DONE,MASK);
     PDS_IntClear();
@@ -229,16 +239,33 @@ uint8_t ATTR_TCM_SECTION check_whether_enter_pds(void)
     return val;
 }
 
+#include <hosal_gpio.h>
+static uint8_t arg1 = 2;
+void key1_irq(void *arg)
+{
+    uint8_t val1 = *(uint8_t *)arg;
+    if (val1 == arg1) {
+        printf("[HOSAL][GPIO] irq1 ok\r\n");
+    }
+}
+
 void ATTR_TCM_SECTION pds_mode_entry(void)
 {
     uint8_t status;
     uint32_t cycles;
 
+    static hosal_gpio_dev_t key1;
+    key1.port = 3;
+    key1.config = INPUT_PULL_UP;
+    hosal_gpio_init(&key1);
+    hosal_gpio_irq_set(&key1, HOSAL_IRQ_TRIG_NEG_PULSE, NULL, NULL);
+
     while (1) {
-        cycles = PDS_WAKEUP_MS * 32768 / 1000;
+        cycles = 5 * 32768;
         enter_pds_mode(cycles);
         status = check_whether_enter_pds();
         if (status != PDS_STATUS) {
+            printf("reboot!!\r\n");
             hal_reboot();
             return;
         }

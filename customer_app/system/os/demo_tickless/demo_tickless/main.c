@@ -23,7 +23,7 @@
 #endif
 #include <bl602_glb.h>
 #include <bl602_hbn.h>
-
+#include <bl_flash.h>
 #include <bl_uart.h>
 #include <bl_chip.h>
 #include <bl_wifi.h>
@@ -744,6 +744,7 @@ void main()
     static StackType_t proc_main_stack[1024];
     static StaticTask_t proc_main_task;
 
+    bl_flash_init();
     if (check_whether_enter_pds() == PDS_STATUS) {
         printf("######\r\n");
         pds_mode_entry();
