@@ -111,7 +111,7 @@ BL_Err_Type ATTR_TCM_SECTION XIP_SFlash_State_Save_Ext(SPI_Flash_Cfg_Type *pFlas
     /* Exit form continous read for accepting command */
     SFlash_Reset_Continue_Read(pFlashCfg);
     /* Send software reset command(80bv has no this command)to deburst wrap for ISSI like */
-    SFlash_Software_Reset(pFlashCfg);
+    // SFlash_Software_Reset(pFlashCfg);
     /* For disable command that is setting register instaed of send command, we need write enable */
     SFlash_DisableBurstWrap(pFlashCfg);
     if ((pFlashCfg->ioMode & 0x0f) == SF_CTRL_QO_MODE || (pFlashCfg->ioMode & 0x0f) == SF_CTRL_QIO_MODE) {
