@@ -74,7 +74,7 @@ a lot of data that needs to be copied, this should be set high. */
 #elif defined(CFG_SDIOWIFI)
 #define MEM_SIZE                (24*1024)
 #else
-#define MEM_SIZE                (8*1024)
+#define MEM_SIZE                (16*1024)
 #endif
 
 
@@ -160,7 +160,7 @@ a lot of data that needs to be copied, this should be set high. */
 #ifdef CFG_ETHERNET_ENABLE
 #define TCP_SND_BUF             (11*TCP_MSS)
 #else
-#define TCP_SND_BUF             (3*TCP_MSS)
+#define TCP_SND_BUF             (6*TCP_MSS)
 #endif
 #endif
 
@@ -187,7 +187,7 @@ a lot of data that needs to be copied, this should be set high. */
 #ifdef CFG_ETHERNET_ENABLE
 #define TCP_WND                 (6*TCP_MSS)
 #else
-#define TCP_WND                 (3*TCP_MSS)
+#define TCP_WND                 (6*TCP_MSS)
 #endif
 #endif
 
@@ -374,7 +374,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define LWIP_DNS                        1
 #define LWIP_DNS_SECURE                 0
 
-#define MEMP_MEM_MALLOC                 0
+#define MEMP_MEM_MALLOC                 1
 #define LWIP_SUPPORT_CUSTOM_PBUF        1
 
 #define PBUF_LINK_ENCAPSULATION_HLEN    128u

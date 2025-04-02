@@ -266,28 +266,39 @@ static inline struct pbuf *_handle_frame_from_stack_with_mempool(void *swdesc, u
     int i = 0;
 
     h = pbuf_alloc(PBUF_RAW, pkt->len[0] - msdu_offset, PBUF_POOL);
-    if (NULL == h) {
-        printf("error mem1 ========================================== pbuf mem\r\n");
+    if (h == NULL) {
+        //printf("pbuf_alloc failed, drop rx packet\r\n");
         return NULL;
     }
-    pbuf_take(h, (uint8_t*)(pkt->pkt[0]) + msdu_offset, pkt->len[0] - msdu_offset);
 
-    i = 1;//header is already set
-    while (i < sizeof(pkt->pkt)/sizeof(pkt->pkt[0])) {
+    /* Stage 1: Alloc pbuf */
+    for (i = 1; i < sizeof(pkt->pkt)/sizeof(pkt->pkt[0]); i++) {
         if (0 == pkt->len[i]) {
             break;
         }
+
         t = pbuf_alloc(PBUF_RAW, pkt->len[i], PBUF_POOL);
-        if (t) {
-            pbuf_take(t, (uintptr_t*)pkt->pkt[i], pkt->len[i]);
-            pbuf_cat(h, t);
-            i++;
-        } else {
-            printf("error mem2 ====================================== pbuf mem\r\n");
+        if (t == NULL) {
             pbuf_free(h);
+            printf("pbuf_alloc failed, drop rx packet\r\n");
             return NULL;
         }
+        pbuf_cat(h, t);
     }
+
+    /* Stage 2: copy data to pbuf */
+    /* copy first data slice */
+    uint32_t offset = pkt->len[0] - msdu_offset;
+    pbuf_take(h, (uint8_t *)(uintptr_t)pkt->pkt[0] + msdu_offset, pkt->len[0] - msdu_offset);
+
+    for (i = 1; i < sizeof(pkt->pkt)/sizeof(pkt->pkt[0]); i++) {
+        if (0 == pkt->len[i]) {
+            break;
+        }
+        pbuf_take_at(h, (void *)(uintptr_t)pkt->pkt[i], pkt->len[i], offset);
+        offset += pkt->len[i];
+    }
+
     return h;
 }
 
@@ -397,10 +408,7 @@ int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int ms
         goto end;
     }
 
-#if defined(CFG_CHIP_BL808)
-    h = _handle_frame_from_stack_with_mempool(swdesc, msdu_offset, pkt);
-    zerocopy = false;
-#elif defined(CFG_CHIP_BL606P)
+#if defined(CFG_CHIP_BL808) || defined(CFG_CHIP_BL606P) || defined(CFG_CHIP_BL602)
     h = _handle_frame_from_stack_with_mempool(swdesc, msdu_offset, pkt);
     zerocopy = false;
 #else
