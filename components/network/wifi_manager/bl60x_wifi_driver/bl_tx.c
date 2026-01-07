@@ -301,3 +301,123 @@ err_t bl_output(struct bl_hw *bl_hw, struct netif *netif, struct pbuf *p, int is
 
     return ERR_OK;
 }
+
+/**
+ * @brief Find STA index by MAC address in the given VIF
+ */
+int bl_tx_find_sta_by_mac(uint8_t vif_idx, struct mac_addr *mac)
+{
+    struct bl_sta *sta;
+    int i;
+
+    for (i = 0; i < NX_REMOTE_STA_STORE_MAX; i++)
+    {
+        sta = &wifi_hw.sta_table[i];
+        if (sta->is_used && sta->vif_idx == vif_idx &&
+            memcmp(&sta->sta_addr, mac, sizeof(struct mac_addr)) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief Forward a unicast frame to a specific STA (intra-BSS forwarding)
+ */
+err_t bl_tx_intra_bss_forward(struct pbuf *p, int dst_sta_idx)
+{
+    struct bl_sta *sta;
+    struct pbuf *q;
+    err_t ret;
+    struct netif *netif;
+
+    if (dst_sta_idx < 0 || dst_sta_idx >= NX_REMOTE_STA_STORE_MAX)
+    {
+        return ERR_ARG;
+    }
+
+    sta = &wifi_hw.sta_table[dst_sta_idx];
+    if (!sta->is_used)
+    {
+        return ERR_CONN;
+    }
+
+    netif = wifi_hw.vif_table[sta->vif_idx].dev;
+    if (!netif) {
+        return ERR_CONN;
+    }
+
+    /* Allocate new pbuf with enough headroom for WiFi TX header */
+    q = pbuf_alloc(PBUF_RAW, PBUF_LINK_ENCAPSULATION_HLEN + p->tot_len, PBUF_RAM);
+    if (!q)
+    {
+        return ERR_MEM;
+    }
+
+    /* Reserve space for WiFi TX header */
+    if (pbuf_header(q, -(s16_t)PBUF_LINK_ENCAPSULATION_HLEN)) {
+        pbuf_free(q);
+        return ERR_BUF;
+    }
+    /* Copy the original data */
+    if (pbuf_copy(q, p) != ERR_OK) {
+        pbuf_free(q);
+        return ERR_BUF;
+    }
+
+    /* Use bl_output to send the packet, is_sta=0 for AP mode */
+    ret = bl_output(&wifi_hw, netif, q, 0, NULL);
+    pbuf_free(q);
+    return ret;
+}
+
+/**
+ * @brief Forward a broadcast/multicast frame on the BSS
+ */
+err_t bl_tx_intra_bss_broadcast(struct pbuf *p, int src_sta_idx)
+{
+    struct bl_sta *sta;
+    struct pbuf *q;
+    struct netif *netif;
+    err_t ret;
+
+    if (src_sta_idx < 0 || src_sta_idx >= NX_REMOTE_STA_STORE_MAX)
+    {
+        return ERR_ARG;
+    }
+
+    sta = &wifi_hw.sta_table[src_sta_idx];
+    if (!sta->is_used)
+    {
+        return ERR_CONN;
+    }
+
+    netif = wifi_hw.vif_table[sta->vif_idx].dev;
+    if (!netif) {
+        return ERR_CONN;
+    }
+
+    /* Allocate new pbuf with enough headroom for WiFi TX header */
+    q = pbuf_alloc(PBUF_RAW, PBUF_LINK_ENCAPSULATION_HLEN + p->tot_len, PBUF_RAM);
+    if (!q)
+    {
+        return ERR_MEM;
+    }
+
+    /* Reserve space for WiFi TX header */
+    if (pbuf_header(q, -(s16_t)PBUF_LINK_ENCAPSULATION_HLEN)) {
+        pbuf_free(q);
+        return ERR_BUF;
+    }
+    /* Copy the original data */
+    if (pbuf_copy(q, p) != ERR_OK) {
+        pbuf_free(q);
+        return ERR_BUF;
+    }
+
+    ret = bl_output(&wifi_hw, netif, q, 0, NULL);
+    /* bl_output refs the pbuf, we need to free our reference */
+    pbuf_free(q);
+    return ret;
+}

@@ -53,4 +53,7 @@ int bl_wifi_eth_tx(struct pbuf *p, bool is_sta, struct bl_custom_tx_cfm *custom_
 int bl_txdatacfm(void *pthis, void *host_id);
 void bl_tx_try_flush();
 void bl_irq_handler();
+int bl_tx_find_sta_by_mac(uint8_t vif_idx, struct mac_addr *mac);
+err_t bl_tx_intra_bss_forward(struct pbuf *p, int dst_sta_idx);
+err_t bl_tx_intra_bss_broadcast(struct pbuf *p, int src_sta_idx);
 #endif

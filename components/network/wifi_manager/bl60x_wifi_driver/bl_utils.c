@@ -23,8 +23,12 @@
 #include "bl_rx.h"
 #include "bl_tx.h"
 #include "bl_cmds.h"
+#include "bl_defs.h"  /* For BL_VIF_AP, struct mac_addr */
 #undef os_printf
 #define os_printf(...) do {} while(0)
+
+/* Macro to check if MAC address is broadcast/multicast */
+#define IS_BC_MC(byte)             ((byte) & 0x01)
 
 extern struct bl_hw wifi_hw;
 
@@ -440,6 +444,41 @@ int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int ms
             }
         }
 #endif
+
+        /*
+         * Intra-BSS forwarding for AP mode:
+         * When AP receives a frame from STA1 destined to STA2, forward it at L2.
+         */
+        if (hw_rxhdr->flags_sta_idx != 0xff &&
+            hw_rxhdr->flags_sta_idx < NX_REMOTE_STA_STORE_MAX) {
+            struct netif *ap_netif = wifi_mgmr_ap_netif_get();
+            bool is_ap_mode = (bl_vif->dev == ap_netif);
+
+            if (is_ap_mode) {
+                struct ethhdr *eth_hdr = (struct ethhdr *)(h->payload);
+
+                if (IS_BC_MC(eth_hdr->h_dest[0])) {
+                    (void)bl_tx_intra_bss_broadcast(h, (int)hw_rxhdr->flags_sta_idx);
+                } else {
+                    struct bl_sta *src_sta = &wifi_hw.sta_table[hw_rxhdr->flags_sta_idx];
+                    if (!src_sta->is_used) {
+                        goto skip_intra_bss_forward;
+                    }
+
+                    struct mac_addr dst_mac;
+                    memcpy(dst_mac.array, eth_hdr->h_dest, sizeof(dst_mac.array));
+                    int dst_sta_idx = bl_tx_find_sta_by_mac(src_sta->vif_idx, &dst_mac);
+                    if (dst_sta_idx >= 0 && dst_sta_idx != (int)hw_rxhdr->flags_sta_idx) {
+                        (void)bl_tx_intra_bss_forward(h, dst_sta_idx);
+                        pbuf_free(h);
+                        goto free;
+                    }
+                }
+            }
+        }
+
+    skip_intra_bss_forward: ;
+
         #ifdef LWIP_IPV6
         struct ethhdr *hdr = (struct ethhdr *)(skb_payload);
         if (bl_vif->dev && tcpip_src_addr_cmp(hdr, (bl_vif->dev)->hwaddr) && ERR_OK == bl_vif->dev->input(h, bl_vif->dev)) {

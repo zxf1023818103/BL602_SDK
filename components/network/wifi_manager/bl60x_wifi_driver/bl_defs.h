@@ -6,7 +6,7 @@
 #include "bl_cmds.h"
 #include "bl_mod_params.h"
 
-#define ETH_ALEN    6       
+#define ETH_ALEN    6
 /**
  ****************************************************************************************
  *
@@ -29,6 +29,7 @@
 #define IEEE80211_MAX_AMPDU_BUF 0x40
 #define NX_VIRT_DEV_MAX 2
 #define NX_REMOTE_STA_MAX CFG_STA_MAX
+#define NX_REMOTE_STA_STORE_MAX (NX_VIRT_DEV_MAX + NX_REMOTE_STA_MAX)
 #define CONFIG_USER_MAX 1
 #define cpu_to_le16(v16) (v16)
 #define cpu_to_le32(v32) (v32)
