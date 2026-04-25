@@ -219,7 +219,7 @@ BL_CHIP_NAME := ${CONFIG_CHIP_NAME}
 # Set default LDFLAGS
 # -nostdlib
 # --specs=nosys.specs
-EXTRA_LDFLAGS ?= -m elf32lriscv -L$(BL60X_SDK_PATH)/toolchain/riscv/$(shell uname |cut -d '_' -f1)/riscv64-unknown-elf/lib/rv32imafc/ilp32f -L$(BL60X_SDK_PATH)/toolchain/riscv/$(shell uname |cut -d '_' -f1)/lib/gcc/riscv64-unknown-elf/10.2.0/rv32imafc/ilp32f --cref -nostartfiles
+EXTRA_LDFLAGS ?= -m elf32lriscv -L$(CONFIG_TOOLCHAIN_DIR)/riscv64-unknown-elf/lib/rv32imafc/ilp32f -L$(CONFIG_TOOLCHAIN_DIR)/lib/gcc/riscv64-unknown-elf/10.2.0/rv32imafc/ilp32f --cref -nostartfiles
 
 ifeq ("$(CONFIG_CHIP_NAME)", "VIRTEX7")
 LDFLAGS ?=  \
@@ -471,13 +471,7 @@ $(foreach componentpath,$(COMPONENT_PATHS), \
 COMPONENT_LINKER_DEPS ?=
 $(APP_ELF): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS) $(COMPONENT_PROJECT_VARS)
 	$(summary) LD $(patsubst $(PWD)/%,%,$@)
-ifeq ($(CONFIG_ZIGBEE), 1)
-	$(CXX) -o $@ $(LDFLAGS) -Wl,-Map=$(APP_MAP)
-else ifeq ($(CONFIG_CPP_ENABLE), 1)
-	$(CXX) -o $@ $(LDFLAGS) -Wl,-Map=$(APP_MAP)
-else
-	$(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP) $(shell find build_out/ -name bugkiller_*.o)
-endif
+	$(LD) $(LDFLAGS) -o $@ -Map=$(APP_MAP) $(shell find build_out/ -name bugkiller_*.o)
 
 all_binaries: $(APP_BIN)
 
