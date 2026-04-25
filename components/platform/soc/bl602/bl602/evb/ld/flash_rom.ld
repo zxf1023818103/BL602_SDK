@@ -64,6 +64,12 @@ SECTIONS
     *(.rdata)
     *(.rodata .rodata.*)
     *(.sdata2.*)
+    
+    KEEP (*(.gnu_extab))
+    KEEP (*(.gcc_except_table.*))
+    KEEP (*(.exception_ranges*))
+    KEEP (*(.eh_frame))
+    KEEP (*(.eh_frame.*))
 
     /* static cli cmds */
     . = ALIGN(4);

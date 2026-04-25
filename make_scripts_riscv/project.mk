@@ -219,7 +219,7 @@ BL_CHIP_NAME := ${CONFIG_CHIP_NAME}
 # Set default LDFLAGS
 # -nostdlib
 # --specs=nosys.specs
-EXTRA_LDFLAGS ?= -Wl,--cref -nostartfiles
+EXTRA_LDFLAGS ?= -m elf32lriscv -L$(BL60X_SDK_PATH)/toolchain/riscv/$(shell uname |cut -d '_' -f1)/riscv64-unknown-elf/lib/rv32imafc/ilp32f -L$(BL60X_SDK_PATH)/toolchain/riscv/$(shell uname |cut -d '_' -f1)/lib/gcc/riscv64-unknown-elf/10.2.0/rv32imafc/ilp32f --cref -nostartfiles
 
 ifeq ("$(CONFIG_CHIP_NAME)", "VIRTEX7")
 LDFLAGS ?=  \
@@ -230,18 +230,18 @@ LDFLAGS ?=  \
 	-Wl,--end-group \
 
 else
-E21_CPU_LDFLAGS := -march=rv32imfc \
-                   -mabi=ilp32f
-
-LDFLAGS ?=  $(E21_CPU_LDFLAGS) \
+LDFLAGS ?= $(E21_CPU_LDFLAGS) \
 	$(EXTRA_LDFLAGS) \
-	-Wl,--gc-sections	\
-	-Wl,-static	\
-	-Wl,--start-group	\
+	--gc-sections	\
+	-static	\
+	--start-group	\
 	$(COMPONENT_LDFLAGS) \
-	-Wl,--end-group \
-	-Wl,-EL \
-	-lm
+	--end-group \
+	-EL \
+	-lm \
+	-lstdc++ \
+	-lc \
+	-lgcc
 endif
 
 # Set default CPPFLAGS, CFLAGS, CXXFLAGS
@@ -371,13 +371,13 @@ CXXFLAGS := $(strip \
 	-save-temps=obj \
 	)
 else
-E21_CPU_CFLAGS := -march=rv32imfc \
+E21_CPU_CFLAGS := -march=rv32imafc \
                    -mabi=ilp32f
 
 ASMFLAGS := $(E21_CPU_CFLAGS)
 
 CFLAGS := $(strip \
-	-std=gnu99 \
+	-std=gnu17 \
 	$(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) \
 	$(COMMON_FLAGS) \
 	$(COMMON_WARNING_FLAGS) -Wno-old-style-declaration \
@@ -387,7 +387,7 @@ CFLAGS := $(strip \
 	-save-temps=obj
 
 CXXFLAGS := $(strip \
-	-std=c++11 \
+	-std=gnu++17 \
 	$(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) \
 	$(COMMON_FLAGS) \
 	$(COMMON_WARNING_FLAGS) \
@@ -406,7 +406,7 @@ CXXFLAGS := $(strip \
 	-Wswitch-default \
 	-Wunused \
 	-Wundef \
-	-fno-rtti -fno-exceptions \
+	-frtti -fno-exceptions \
 	-save-temps=obj \
 	-fno-use-cxa-atexit\
 	)
