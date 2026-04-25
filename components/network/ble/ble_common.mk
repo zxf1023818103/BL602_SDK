@@ -562,3 +562,4 @@ endif
 CFLAGS   += -Wno-unused-const-variable  \
             -Wno-unused-but-set-variable \
             -Wno-format
+CXXFLAGS += $(strip $(CFLAGS) $(CPPFLAGS))
