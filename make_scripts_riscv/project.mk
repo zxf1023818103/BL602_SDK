@@ -269,6 +269,7 @@ endif
 EXTRA_CPPFLAGS ?=
 CPPFLAGS += -D BL_CHIP_NAME=\"$(BL_CHIP_NAME)\" -MMD -MP $(EXTRA_CPPFLAGS)
 CPPFLAGS += -DARCH_RISCV
+CPPFLAGS += -DBL602_MATTER_SUPPORT -DCFG_IPV6
 
 # Warnings-related flags relevant both for C and C++
 COMMON_WARNING_FLAGS = -Wall -Werror=all \

@@ -19,11 +19,8 @@
 #define LWIP_IGMP               1
 
 #ifdef BL602_MATTER_SUPPORT
-#define LWIP_AUTOIP             1
-#define LWIP_IPV6_MLD           1
-#define LWIP_ND6_RDNSS_MAX_DNS_SERVERS  1
-#elif defined(CFG_IPV6)
 #define LWIP_IPV6                       1
+#define LWIP_AUTOIP                     1
 #define LWIP_IPV6_MLD                   1
 #define LWIP_IPV6_DHCP6                 1
 #define LWIP_ND6_RDNSS_MAX_DNS_SERVERS  1
@@ -396,9 +393,7 @@ a lot of data that needs to be copied, this should be set high. */
  * local TCP/UDP pcb (default==0). This can prevent creating predictable port
  * numbers after booting a device.
  */
-#ifndef BL602_MATTER_SUPPORT
 extern int bl_rand();
-#endif
 
 #define LWIP_RANDOMIZE_INITIAL_LOCAL_PORTS 1
 #define LWIP_RAND() ((u32_t)bl_rand())
