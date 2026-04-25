@@ -579,7 +579,7 @@ struct bt_gatt_ccc_cfg {
 struct _bt_gatt_ccc {
 	struct bt_gatt_ccc_cfg	cfg[BT_GATT_CCC_MAX];
 	u16_t			value;
-	void			(*cfg_changed)(const struct bt_gatt_attr *attr,
+	void			(*cfg_changed)(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 					       u16_t value);
 	bool			(*cfg_write)(struct bt_conn *conn,
 					     const struct bt_gatt_attr *attr,
